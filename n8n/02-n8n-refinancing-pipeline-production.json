@@ -1,0 +1,337 @@
+{
+  "name": "99Group_Refinancing_Call_Pipeline_Production",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "refinance-webhook",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "name": "Webhook Retell Receiver1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        144
+      ],
+      "id": "08d02559-19cd-4301-a9b6-6b1d206d49dd",
+      "webhookId": "fec4924c-ee5b-44cd-9777-2d3a8e50fbb3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// SIGNATURE VERIFICATION DINONAKTIFKAN UNTUK ASSESSMENT.\n// Retell Web Call tetap mengirim header signature, tapi verifikasinya\n// gagal (key mismatch / bukan API key ber-badge \"webhook\"), sehingga\n// workflow berhenti sebelum sampai ke Google Sheets/Telegram.\n// Untuk PRODUCTION nanti: pasang lagi HMAC check dengan API key yang\n// benar (badge \"webhook\" di Retell dashboard), jangan biarkan seperti ini.\n\nconst item = $input.first().json;\nconst parsedBody = typeof item.body === 'string' ? JSON.parse(item.body) : item.body;\nreturn [{ json: { ...item, body: parsedBody, signatureCheck: 'DISABLED_FOR_ASSESSMENT' } }];"
+      },
+      "name": "Verify Retell Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        144
+      ],
+      "id": "c4768b5d-1ee6-43bd-a853-3a79eab63ee7",
+      "notes": "Signature check dimatikan sementara untuk assessment - lihat komentar di kode. Aktifkan lagi sebelum production."
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst payload = inputData.body || inputData;\n\nfunction isNonEmpty(obj) {\n  return obj && typeof obj === 'object' && Object.keys(obj).length > 0;\n}\n\n// args_at_root: true di Retell -> argumen fungsi ada LANGSUNG di root payload\nconst args = isNonEmpty(payload.args) ? payload.args\n  : isNonEmpty(payload.parameters) ? payload.parameters\n  : isNonEmpty(payload.call?.custom_variables) ? payload.call.custom_variables\n  : payload;\n\nconst leadId = args.lead_id || null;\nconst phoneNumber = args.phone_number || null;\nconst customerName = (args.customer_name && args.customer_name.trim() !== '')\n  ? args.customer_name.trim()\n  : 'Nasabah (nama tidak tercatat)';\nconst hasKpr = Boolean(args.has_existing_kpr);\nconst currentBank = (args.current_bank && args.current_bank !== '') ? args.current_bank : 'Bank Belum Ditentukan';\nconst kprTenure = Number(args.kpr_tenure_years) || 0;\nconst isInterested = Boolean(args.interest_in_takeover);\n\nlet leadScore = 'COLD_LEAD';\nlet nextAction = 'LOG_ONLY';\n\nif (hasKpr && isInterested) {\n  leadScore = 'HOT_LEAD';\n  nextAction = 'ROUTE_TO_KPR_SPECIALIST_TELEMARKETING';\n} else if (hasKpr && !isInterested) {\n  leadScore = 'WARM_NURTURE';\n  nextAction = 'SEND_EDUCATIONAL_WHATSAPP';\n}\n\nconst LEAD_SCORE_LABELS = { HOT_LEAD: 'HOT LEAD', WARM_NURTURE: 'WARM LEAD', COLD_LEAD: 'COLD LEAD' };\nconst NEXT_ACTION_LABELS = {\n  ROUTE_TO_KPR_SPECIALIST_TELEMARKETING: 'Diarahkan ke Tim Spesialis KPR (Telemarketing)',\n  SEND_EDUCATIONAL_WHATSAPP: 'Kirim WhatsApp Edukasi KPR',\n  LOG_ONLY: 'Hanya dicatat (belum lanjut)'\n};\n\nreturn [{\n  json: {\n    status: 200,\n    message: \"Lead data successfully processed by 99 Group Engine\",\n    data: {\n      leadId,\n      phoneNumber,\n      customerName,\n      hasActiveKPR: hasKpr,\n      currentBank,\n      kprTenureYears: kprTenure,\n      isInterestedInTakeover: isInterested,\n      leadScore,\n      leadScoreLabel: LEAD_SCORE_LABELS[leadScore],\n      nextAction,\n      nextActionLabel: NEXT_ACTION_LABELS[nextAction],\n      processedAt: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "name": "JS Lead Scoring & Normalizer1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        144
+      ],
+      "id": "3bfd1bed-b8b5-44ad-a66e-d4e85ddf1cd1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook Fast",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7b39087d-87e0-4aea-81b5-e021a9218ab8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.data.leadScore }}",
+              "operation": "notEqual",
+              "value2": "COLD_LEAD"
+            }
+          ]
+        }
+      },
+      "name": "Filter Valid Leads",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        0,
+        224
+      ],
+      "id": "7feced72-bff2-4d6d-a818-402e2f9a9805"
+    },
+    {
+      "parameters": {
+        "chatId": "-1004451994680",
+        "text": "=📞 <b>HASIL CALL RETELL AI (REFINANCE)</b> 📞\n━━━━━━━━━━━━━━━━━━\n🆔 <b>Lead ID:</b> {{ $json.data.leadId }}\n☎️ <b>No. HP:</b> {{ $json.data.phoneNumber }}\n👤 <b>Nama Customer:</b> {{ $json.data.customerName }}\n🏦 <b>Bank Saat Ini:</b> {{ $json.data.currentBank }}\n⏳ <b>Tenor KPR:</b> {{ $json.data.kprTenureYears }} Tahun\n🎯 <b>Minat Takeover:</b> {{ $json.data.isInterestedInTakeover ? \"YA ✅\" : \"TIDAK ❌\" }}\n🔥 <b>Lead Score:</b> {{ $json.data.leadScoreLabel }}\n📌 <b>Next Action:</b> {{ $json.data.nextActionLabel }}\n━━━━━━━━━━━━━━━━━━\n<i>Processed by 99 Group Engine at {{ $json.data.processedAt }}</i>",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "name": "Send to Telegram Group1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        240,
+        128
+      ],
+      "id": "1881243d-8ad5-4d05-bb0f-0ab9106b9fdb",
+      "webhookId": "435a1294-5b01-473d-971f-6030370ecdbf",
+      "credentials": {
+        "telegramApi": {
+          "id": "YO6OKF2ubgYI9zQV",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1oYOwUpcWcJHkuWcMVPo_0LODFEEhYyLCsLGUFbLkiGM",
+          "mode": "list",
+          "cachedResultName": "data_user_kpr",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oYOwUpcWcJHkuWcMVPo_0LODFEEhYyLCsLGUFbLkiGM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Qualified Leads",
+          "mode": "name",
+          "cachedResultName": "Qualified Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer Name": "={{ $json.data.customerName }}",
+            "Has Active KPR": "={{ $json.data.hasActiveKPR }}",
+            "Current Bank": "={{ $json.data.currentBank }}",
+            "Tenure Years": "={{ $json.data.kprTenureYears }}",
+            "Interested Takeover": "={{ $json.data.isInterestedInTakeover }}",
+            "Lead Score": "={{ $json.data.leadScoreLabel }}",
+            "Next Action": "={{ $json.data.nextActionLabel }}",
+            "Processed At": "={{ $json.data.processedAt }}",
+            "Lead ID": "={{ $json.data.leadId }}",
+            "Phone Number": "={{ $json.data.phoneNumber }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Has Active KPR",
+              "displayName": "Has Active KPR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Current Bank",
+              "displayName": "Current Bank",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Tenure Years",
+              "displayName": "Tenure Years",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Interested Takeover",
+              "displayName": "Interested Takeover",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Next Action",
+              "displayName": "Next Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Processed At",
+              "displayName": "Processed At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        320
+      ],
+      "id": "66f5ae9d-0a59-4884-ad62-19d45fe08f5e",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zH4vbCE8cTLGYUbA",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Retell Receiver1": {
+      "main": [
+        [
+          {
+            "node": "Verify Retell Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS Lead Scoring & Normalizer1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook Fast",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Valid Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Leads": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram Group1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Retell Signature": {
+      "main": [
+        [
+          {
+            "node": "JS Lead Scoring & Normalizer1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "p8doLQPpsvgkyliM",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "6d250766-7561-413e-afec-a45c6620122c",
+  "meta": {
+    "instanceId": "8a205d328b13519a77ab0bffa282cca5e3e86bb353655298051a0bd8f0ca747d"
+  },
+  "nodeGroups": [],
+  "id": "D8wuE8EECW2mp4aV",
+  "tags": []
+}

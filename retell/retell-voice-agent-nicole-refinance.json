@@ -1,0 +1,448 @@
+{
+  "agent_id": "",
+  "channel": "voice",
+  "last_modification_timestamp": 1785081104168,
+  "agent_name": "99Group_Refinance_Agent_Assesment",
+  "response_engine": {
+    "type": "conversation-flow",
+    "version": 2,
+    "conversation_flow_id": "conversation_flow_855ac13a806d"
+  },
+  "webhook_url": "https://gerrio.app.n8n.cloud/webhook/refinance-call-events",
+  "language": "id-ID",
+  "data_storage_setting": "everything",
+  "opt_in_signed_url": false,
+  "version": 2,
+  "base_version": 1,
+  "assigned_tags": [],
+  "is_published": false,
+  "post_call_analysis_model": "gpt-4o-mini",
+  "pii_config": {
+    "mode": "post_call",
+    "categories": [
+      "person_name",
+      "bank_account"
+    ]
+  },
+  "handbook_config": {
+    "default_personality": true,
+    "ai_disclosure": true
+  },
+  "timezone": "Asia/Jakarta",
+  "voice_id": "retell-Chloe",
+  "fallback_voice_ids": [],
+  "voice_temperature": 0.3,
+  "voice_speed": 1,
+  "volume": 1,
+  "enable_expressive_mode": false,
+  "max_call_duration_ms": 3600000,
+  "interruption_sensitivity": 0.9,
+  "boosted_keywords": [
+    "Rumah123",
+    "99 Group",
+    "KPR",
+    "Takeover",
+    "Refinancing",
+    "Bank BCA",
+    "Bank Mandiri",
+    "Bank BRI",
+    "Bank BNI",
+    "BSI",
+    "CIMB Niaga",
+    "Cicilan",
+    "Provisi",
+    "Simulasi"
+  ],
+  "ambient_sound": "call-center",
+  "ivr_option": {
+    "action": {
+      "type": "hangup"
+    }
+  },
+  "allow_user_dtmf": true,
+  "user_dtmf_options": {},
+  "conversationFlow": {
+    "conversation_flow_id": "conversation_flow_855ac13a806d",
+    "version": 2,
+    "last_modification_timestamp": 1785081924949,
+    "global_prompt": "# ROLE & IDENTITY\nYou are \"Nicole\", a Senior Mortgage Specialist from Rumah123 (99 Group Indonesia). Your voice is professional, empathetic, articulate, and natural. You are making outbound calls to existing property owners to offer a Mortgage Refinancing (Takeover KPR) program designed to reduce monthly installments and interest rates.\n\n# DYNAMIC VARIABLES\n- {{customer_name}}: Name of the customer (e.g., Gerrio, Budi, Siti).\n- {{title}}: Panggilan resmi (e.g., Bapak, Ibu, atau Kak jika target lebih muda/casual). Default jika tidak ada: \"Bapak/Ibu\".\n- {{customer_name_captured}}: Nama yang DIUCAPKAN LANGSUNG oleh nasabah saat ditanya di awal panggilan (bukan dari CRM). Ini adalah nama WAJIB yang dipakai untuk sapaan setelah ditanyakan, dan WAJIB dikirim sebagai parameter customer_name saat memanggil fungsi qualify_refinance_lead.\n- {{lead_id}} dan {{phone_number}}: identitas sistem yang SUDAH diisi otomatis sejak panggilan dimulai (dikirim oleh sistem outbound caller). WAJIB disertakan apa adanya saat memanggil fungsi qualify_refinance_lead. JANGAN PERNAH ditanyakan ke nasabah.\n\n# DYNAMIC VARIABLE RULES\n1. Jika variabel {{customer_name}} tersedia dan valid, sapa nasabah dengan:\n   \"Halo, selamat sore {{title}} {{customer_name}}.\"\n2. Jika variabel {{customer_name}} kosong/undefined/berisi placeholder, secara otomatis sapa dengan:\n   \"Halo, selamat sore Bapak/Ibu.\"\n   (DILARANG KERAS mengucapkan atau menyebut simbol {{...}} atau tanda kurung kurawal secara lisan!).\n\n# CONVERSATIONAL FLOW & DIALOGUE POINTS\n1. GREETING & PERMISSION:\n   - Jika {{customer_name}} ada: \"Halo, selamat sore {{title}} {{customer_name}}. Saya Nicole dari Rumah123. Apakah ada waktu 1 menit untuk mengobrol santai mengenai fasilitas penurunan suku bunga KPR?\"\n   - Jika {{customer_name}} kosong: \"Halo, selamat sore Bapak/Ibu. Saya Nicole dari Rumah123. Apakah ada waktu 1 menit untuk mengobrol santai mengenai fasilitas penurunan suku bunga KPR?\"\n\n2. ASK FOR NAME (jika belum tahu nama nasabah):\n   - \"Baik, terima kasih. Sebelum lanjut, boleh saya tahu ini dengan Bapak/Ibu siapa?\"\n   - Setelah nasabah menjawab, WAJIB gunakan nama tersebut ({{customer_name_captured}}) untuk sapaan di sisa percakapan, gantikan \"Bapak/Ibu\" generik.\n\n3. QUALIFYING QUESTIONS (COLLECT DATA):\n   - Q1: \"Apakah saat ini {{title}} sedang memiliki cicilan KPR aktif?\"\n   - Q2: \"Boleh tahu sudah berjalan berapa lama cicilannya, dan menggunakan bank apa saat ini?\"\n   - Q3: \"Apakah merasa suku bunga KPR saat ini mulai naik atau terasa memberatkan cicilan bulanan?\"\n\n3. VALUE PROPOSITION:\n   - \"Rumah123 memiliki program KPR Takeover resmi dengan partner bank utama kami yang bisa memotong suku bunga hingga 2-3% lebih rendah, sehingga menghemat cicilan hingga jutaan rupiah per bulan.\"\n\n4. INTEREST CHECK & FUNCTION CALL TRIGGER:\n   - \"Apakah {{title}} berminat untuk kami hitungkan estimasi penghematannya secara gratis oleh Tim Spesialis KPR kami?\"\n   - IF Customer says YES / Agrees -> Trigger function `qualify_refinance_lead` with all collected parameters.\n   - IF Customer says NO -> Politely thank them and end call.\n\n# OPERATIONAL CONSTRAINTS\n- Language: Natural Indonesian (Bahasa Indonesia).\n- Keep responses concise (under 2 sentences per turn) for ultra-low latency (<800ms).\n- NEVER speak or mention curly braces {{...}} out loud to the customer.\n\n# STRICT TOOL CALLING RULE\nSaat memanggil fungsi qualify_refinance_lead, kamu WAJIB memasukkan parameter berikut dari memori percakapan:\n- has_existing_kpr: true\n- interest_in_takeover: true\n- current_bank: (isi dengan nama bank yang diucapkan user, contoh: \"BCA\" / \"Mandiri\" / \"BRI\")\n- kpr_tenure_years: (isi dengan angka tenor KPR dalam tahun yang diucapkan user, contoh: 10)\nDILARANG KERAS memanggil fungsi qualify_refinance_lead dengan argumen kosong!\n- customer_name: (WAJIB isi dengan {{customer_name_captured}} yang diucapkan user. DILARANG KERAS mengirim \"Bapak/Ibu Valued Customer\" atau nilai default/placeholder apapun.)\n- lead_id: (isi dengan {{lead_id}} apa adanya)\n- phone_number: (isi dengan {{phone_number}} apa adanya)",
+    "nodes": [
+      {
+        "tool_id": "tool-1784961644640",
+        "name": "7_Execute_Refinance_Webhook",
+        "edges": [
+          {
+            "destination_node_id": "node-1784962441591",
+            "id": "edge-1784963844182-xy90ne7jg",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Custom Function qualify_refinance_lead successfully executed."
+            }
+          }
+        ],
+        "enable_typing_sound": false,
+        "id": "node-1784961647768",
+        "type": "function",
+        "tool_type": "local",
+        "speak_during_execution": false,
+        "display_position": {
+          "x": 3534,
+          "y": 678
+        },
+        "wait_for_result": true
+      },
+      {
+        "name": "1_Greeting",
+        "edges": [
+          {
+            "destination_node_id": "node-1784962216173",
+            "id": "edge-1784962176895-nicfha73v",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Transisi terjadi setelah AI memberikan salam pembuka."
+            }
+          }
+        ],
+        "id": "node-1784962176895",
+        "type": "conversation",
+        "display_position": {
+          "x": 198,
+          "y": 6
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Ucapkan salam dengan hangat dan profesional sebagai Nicole dari Rumah123."
+        }
+      },
+      {
+        "name": "2_Check_Initial_Interest",
+        "edges": [
+          {
+            "destination_node_id": "node-2001-ask-name",
+            "id": "edge-1784962249689-31wlg21jm",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "User mengonfirmasi memiliki KPR aktif atau menjawab positif."
+            }
+          },
+          {
+            "destination_node_id": "node-1784962478215",
+            "id": "edge-1784962251971-8gy59bldt",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "User menolak atau tidak memiliki KPR."
+            }
+          }
+        ],
+        "id": "node-1784962216173",
+        "else_edge": {
+          "destination_node_id": "node-1784962478215",
+          "id": "edge-1784962216173-wmk4v7d4c",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Else"
+          }
+        },
+        "type": "branch",
+        "display_position": {
+          "x": 596,
+          "y": 6
+        }
+      },
+      {
+        "name": "3_Ask_Bank_and_Tenure",
+        "edges": [
+          {
+            "destination_node_id": "node-1784962321004",
+            "id": "edge-1784962301642-ulb8bvcbn",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "User menyebutkan nama bank dan/atau durasi cicilan KPR."
+            }
+          }
+        ],
+        "id": "node-1784962301642",
+        "type": "conversation",
+        "display_position": {
+          "x": 1998,
+          "y": 366
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Sapa nasabah dengan nama yang baru saja disebutkan ({{customer_name_captured}}), lalu tanyakan bank apa yang digunakan saat ini dan sudah berapa tahun KPR berjalan."
+        }
+      },
+      {
+        "variables": [
+          {
+            "name": "current_bank",
+            "type": "string",
+            "description": "Name of the bank"
+          },
+          {
+            "name": "kpr_tenure_years",
+            "type": "number",
+            "description": "Durasi KPR yang sudah berjalan dalam satuan tahun"
+          }
+        ],
+        "else_edge": {
+          "id": "node-1784962321004-else-edge",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Else"
+          }
+        },
+        "name": "4_Extract_KPR_Details",
+        "edges": [
+          {
+            "destination_node_id": "node-1784962375932",
+            "id": "edge-1784963610441-ur8tgdomt",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Transisi ke penawaran KPR Takeover setelah data berhasil ditangkap."
+            }
+          }
+        ],
+        "id": "node-1784962321004",
+        "type": "extract_dynamic_variables",
+        "display_position": {
+          "x": 2358,
+          "y": 366
+        }
+      },
+      {
+        "name": "5_Pitch_Takeover_Consent",
+        "edges": [
+          {
+            "destination_node_id": "node-1784962391344",
+            "id": "edge-1784962375932-hgboscu08",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Transisi terjadi setelah AI menjelaskan benefit KPR Takeover."
+            }
+          }
+        ],
+        "id": "node-1784962375932",
+        "type": "conversation",
+        "display_position": {
+          "x": 2694,
+          "y": 366
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Jelaskan benefit KPR Takeover Rumah123 (potong bunga 2-3%) dan minta izin untuk dihitungkan simulasinya. Sapa nasabah dengan nama {{customer_name_captured}} jika sesuai secara natural."
+        }
+      },
+      {
+        "name": "6_Check_Final_Consent",
+        "edges": [
+          {
+            "destination_node_id": "node-1784961647768",
+            "id": "edge-1784962400472-raje4gvg9",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "User menyetujui penawaran KPR Takeover atau meminta dihitung simulasinya."
+            }
+          },
+          {
+            "destination_node_id": "node-1784962478215",
+            "id": "edge-1784962413087-6hxoy1ucs",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "User menolak penawaran Takeover."
+            }
+          }
+        ],
+        "id": "node-1784962391344",
+        "else_edge": {
+          "destination_node_id": "node-1784962478215",
+          "id": "edge-1784962391344-77k7ybwq1",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Else"
+          }
+        },
+        "type": "branch",
+        "display_position": {
+          "x": 3078,
+          "y": 366
+        }
+      },
+      {
+        "name": "8_Confirm_Qualified_Lead",
+        "edges": [
+          {
+            "destination_node_id": "node-1784962478215",
+            "id": "edge-1784962441591-omrni632o",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Transisi setelah Custom Function selesai."
+            }
+          }
+        ],
+        "id": "node-1784962441591",
+        "type": "conversation",
+        "display_position": {
+          "x": 3942,
+          "y": 678
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Informasikan ke {{customer_name_captured}} bahwa data sudah dicatat dan Tim Spesialis akan menghubungi via WhatsApp."
+        }
+      },
+      {
+        "name": "End Call",
+        "id": "node-1784962478215",
+        "type": "end",
+        "speak_during_execution": true,
+        "display_position": {
+          "x": 3462,
+          "y": 366
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Politely end the call"
+        }
+      },
+      {
+        "name": "2b_Ask_Customer_Name",
+        "edges": [
+          {
+            "destination_node_id": "node-2002-extract-name",
+            "id": "edge-2001-2002",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "User menyebutkan namanya."
+            }
+          }
+        ],
+        "id": "node-2001-ask-name",
+        "type": "conversation",
+        "display_position": {
+          "x": 1086,
+          "y": 366
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Ucapkan terima kasih atas waktunya, lalu tanyakan dengan sopan nama nasabah yang sedang berbicara. Contoh: 'Baik, terima kasih. Sebelum lanjut, boleh saya tahu ini dengan Bapak/Ibu siapa?' Jangan lanjut ke pertanyaan lain sebelum nasabah menjawab namanya."
+        }
+      },
+      {
+        "variables": [
+          {
+            "name": "customer_name_captured",
+            "type": "string",
+            "description": "Nama nasabah yang disebutkan langsung oleh nasabah saat ditanya di awal panggilan."
+          }
+        ],
+        "else_edge": {
+          "id": "node-2002-extract-name-else-edge",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Else"
+          }
+        },
+        "name": "2c_Extract_Customer_Name",
+        "edges": [
+          {
+            "destination_node_id": "node-1784962301642",
+            "id": "edge-2002-3",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Transisi ke pertanyaan bank dan tenor KPR setelah nama berhasil ditangkap."
+            }
+          }
+        ],
+        "id": "node-2002-extract-name",
+        "type": "extract_dynamic_variables",
+        "display_position": {
+          "x": 1542,
+          "y": 366
+        }
+      }
+    ],
+    "start_node_id": "node-1784962176895",
+    "start_speaker": "agent",
+    "tools": [
+      {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "parameter_type": "json",
+        "method": "POST",
+        "query_params": {},
+        "description": "Submits qualified mortgage refinancing lead data to n8n automation pipeline when customer agrees to a KPR takeover. MANDATORY ARGUMENTS: 'has_existing_kpr'=true, 'current_bank' from extracted dynamic variable current_bank, 'kpr_tenure_years' as number from extracted dynamic variable kpr_tenure_years, 'customer_name' from extracted dynamic variable customer_name_captured (the name the customer actually said), 'interest_in_takeover'=true, 'lead_id' from dynamic variable {{lead_id}}, and 'phone_number' from dynamic variable {{phone_number}}. lead_id and phone_number are system values known since call start -- never ask the customer for them, just pass them through as given.",
+        "enable_typing_sound": false,
+        "type": "custom",
+        "url": "https://gerrio.app.n8n.cloud/webhook/refinance-webhook",
+        "tool_id": "tool-1784961644640",
+        "args_at_root": true,
+        "timeout_ms": 5000,
+        "speak_after_execution": true,
+        "name": "qualify_refinance_lead",
+        "response_variables": {},
+        "speak_during_execution": false,
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "current_bank": {
+              "type": "string",
+              "description": "Name of the current bank providing the customer's KPR (e.g., BCA, Mandiri, BRI)"
+            },
+            "interest_in_takeover": {
+              "type": "boolean",
+              "description": "Set to true if the customer expresses interest in calculating KPR refinancing/takeover savings"
+            },
+            "phone_number": {
+              "type": "string",
+              "description": "Phone number dialed for this call, from dynamic variable {{phone_number}} set when the call was created. Never ask the customer for this."
+            },
+            "customer_name": {
+              "type": "string",
+              "description": "Full name or address name of the customer being called"
+            },
+            "kpr_tenure_years": {
+              "type": "number",
+              "description": "Number of years the customer's current KPR has been running"
+            },
+            "lead_id": {
+              "type": "string",
+              "description": "Internal lead identifier for this call, from dynamic variable {{lead_id}} set when the call was created. Never ask the customer for this."
+            },
+            "has_existing_kpr": {
+              "type": "boolean",
+              "description": "Set to true if the customer currently has an active KPR mortgage"
+            }
+          },
+          "required": [
+            "has_existing_kpr",
+            "interest_in_takeover",
+            "current_bank",
+            "kpr_tenure_years",
+            "customer_name",
+            "lead_id",
+            "phone_number"
+          ]
+        }
+      }
+    ],
+    "model_choice": {
+      "type": "cascading",
+      "model": "gpt-4.1"
+    },
+    "tool_call_strict_mode": true,
+    "knowledge_base_ids": [],
+    "kb_config": {
+      "top_k": 3,
+      "filter_score": 0.6
+    },
+    "begin_tag_display_position": {
+      "x": 6,
+      "y": 14.78125
+    },
+    "is_published": false,
+    "flex_mode": true,
+    "is_transfer_cf": false
+  }
+}

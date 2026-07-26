@@ -1,0 +1,215 @@
+{
+  "name": "99Group_Daily_Summary_Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * 1-5"
+            }
+          ]
+        }
+      },
+      "name": "Every Weekday 18:00 WIB",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        304
+      ],
+      "id": "1203feaf-09f8-4cd7-bde3-ff9915501250"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1oYOwUpcWcJHkuWcMVPo_0LODFEEhYyLCsLGUFbLkiGM",
+          "mode": "list",
+          "cachedResultName": "data_user_kpr"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Call Log",
+          "mode": "name",
+          "cachedResultName": "Call Log"
+        },
+        "options": {}
+      },
+      "name": "Read Call Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        992,
+        224
+      ],
+      "id": "f0eb113e-8fb1-4c65-926c-e48c4e73eac5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zH4vbCE8cTLGYUbA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1oYOwUpcWcJHkuWcMVPo_0LODFEEhYyLCsLGUFbLkiGM",
+          "mode": "list",
+          "cachedResultName": "data_user_kpr"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Qualified Leads",
+          "mode": "name",
+          "cachedResultName": "Qualified Leads"
+        },
+        "options": {}
+      },
+      "name": "Read Qualified Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        992,
+        416
+      ],
+      "id": "c07b2173-d3ae-44f8-8ed7-fe4690e3ee95",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zH4vbCE8cTLGYUbA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1232,
+        304
+      ],
+      "id": "ef3d9a6a-bd63-4776-ab0b-eb104f7370d4",
+      "notes": "Mode 'append' - cuma dipakai sebagai titik sinkronisasi 2 pembacaan sheet, bukan untuk menggabungkan data (Code node berikutnya ambil data langsung lewat $('Read Call Log') dan $('Read Qualified Leads'), tidak lewat output Merge ini). Mode 'combine'/matchingFields sebelumnya salah - itu perlu kolom kunci pencocokan yang tidak relevan di sini."
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date().toISOString().slice(0, 10);\n\nconst callLog = $('Read Call Log').all().map(i => i.json);\nconst qualified = $('Read Qualified Leads').all().map(i => i.json);\n\nconst todayCalls = callLog.filter(r => (r['Started At'] || '').startsWith(today));\nconst totalCalled = todayCalls.length;\nconst connected = todayCalls.filter(r => r['Call Status'] === 'ended' || r['Call Status'] === 'completed').length;\nconst noAnswer = todayCalls.filter(r => (r['Disconnection Reason'] || '').includes('no_answer') || (r['Disconnection Reason'] || '').includes('voicemail')).length;\n\nconst todayLeads = qualified.filter(r => (r['Processed At'] || '').startsWith(today));\nconst hot = todayLeads.filter(r => (r['Lead Score'] || '').includes('HOT')).length;\nconst warm = todayLeads.filter(r => (r['Lead Score'] || '').includes('WARM')).length;\nconst cold = todayLeads.filter(r => (r['Lead Score'] || '').includes('COLD')).length;\n\nconst connectRate = totalCalled > 0 ? Math.round((connected / totalCalled) * 100) : 0;\nconst conversionRate = connected > 0 ? Math.round((hot / connected) * 100) : 0;\n\nreturn [{\n  json: { date: today, totalCalled, connected, noAnswer, hot, warm, cold, connectRate, conversionRate }\n}];"
+      },
+      "name": "Compute Daily Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        304
+      ],
+      "id": "0c0ea41b-e7e2-458d-bb2e-7ac86748edb0"
+    },
+    {
+      "parameters": {
+        "chatId": "-1004451994680",
+        "text": "=📊 <b>RINGKASAN HARIAN - 99Group Refinancing</b> 📊\n━━━━━━━━━━━━━━━━━━\n🗓 <b>Tanggal:</b> {{ $json.date }}\n📞 <b>Total Ditelepon:</b> {{ $json.totalCalled }} / 100\n✅ <b>Terhubung:</b> {{ $json.connected }} ({{ $json.connectRate }}%)\n📵 <b>Tidak Diangkat/Voicemail:</b> {{ $json.noAnswer }}\n━━━━━━━━━━━━━━━━━━\n🔥 <b>HOT Lead:</b> {{ $json.hot }}\n🌤️ <b>WARM Lead:</b> {{ $json.warm }}\n❄️ <b>COLD Lead:</b> {{ $json.cold }}\n📈 <b>Conversion Rate:</b> {{ $json.conversionRate }}% (dari yang terhubung)\n━━━━━━━━━━━━━━━━━━",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "name": "Send Daily Summary to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        304
+      ],
+      "id": "16f68265-0b05-4e14-9349-760e6341387e",
+      "webhookId": "18c53242-b145-4b9f-8107-f592171f1a83",
+      "credentials": {
+        "telegramApi": {
+          "id": "YO6OKF2ubgYI9zQV",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Weekday 18:00 WIB": {
+      "main": [
+        [
+          {
+            "node": "Read Call Log",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Qualified Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Call Log": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Qualified Leads": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Compute Daily Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Daily Stats": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Summary to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "p8doLQPpsvgkyliM",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "daa8e7eb-b828-4247-8409-0e06e6bc02c5",
+  "meta": {
+    "instanceId": "8a205d328b13519a77ab0bffa282cca5e3e86bb353655298051a0bd8f0ca747d"
+  },
+  "nodeGroups": [],
+  "id": "6JZeEIYN9GEVlY8E",
+  "tags": []
+}

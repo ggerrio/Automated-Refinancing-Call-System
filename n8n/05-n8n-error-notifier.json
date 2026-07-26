@@ -1,0 +1,67 @@
+{
+  "name": "99Group_Error_Notifier",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "On Any Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b2c1e407-b7a7-4ebe-aedc-0e9d8927be0f"
+    },
+    {
+      "parameters": {
+        "chatId": "-1004451994680",
+        "text": "=🚨 <b>WORKFLOW ERROR - 99Group</b> 🚨\n━━━━━━━━━━━━━━━━━━\n⚙️ <b>Workflow:</b> {{ $json.workflow.name }}\n❌ <b>Node Gagal:</b> {{ $json.execution.lastNodeExecuted }}\n📝 <b>Pesan Error:</b> {{ $json.execution.error?.message }}\n🕐 <b>Waktu:</b> {{ $now.toISO() }}\n━━━━━━━━━━━━━━━━━━\nCek Execution History di n8n untuk detail lengkap.",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "name": "Alert Telegram Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        288,
+        0
+      ],
+      "id": "c007c20c-9111-439a-b1bf-53c751b9947c",
+      "webhookId": "e42339d9-85ae-4959-a1b7-aac9efd12040",
+      "credentials": {
+        "telegramApi": {
+          "id": "YO6OKF2ubgYI9zQV",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On Any Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Alert Telegram Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d0c367be-e35f-4e3e-8738-079bf7979d72",
+  "meta": {
+    "instanceId": "8a205d328b13519a77ab0bffa282cca5e3e86bb353655298051a0bd8f0ca747d"
+  },
+  "nodeGroups": [],
+  "id": "p8doLQPpsvgkyliM",
+  "tags": []
+}

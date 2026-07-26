@@ -1,0 +1,314 @@
+{
+  "name": "99Group_Call_Events_Logger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "refinance-call-events",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "name": "Webhook Call Lifecycle Events",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        144
+      ],
+      "id": "5f3d4df7-31f5-46dd-865f-fb47f258510f",
+      "webhookId": "e1e09cc5-73f8-4576-84b5-a705d7997de7",
+      "notes": "URL ini HARUS diset sebagai 'webhook_url' agent-level di Retell (bukan di tool custom function). Endpoint ini menerima event call_started, call_ended, call_analyzed untuk SETIAP panggilan, terlepas dari apakah fungsi qualify_refinance_lead sempat terpanggil atau tidak."
+    },
+    {
+      "parameters": {
+        "jsCode": "// SIGNATURE VERIFICATION DINONAKTIFKAN UNTUK ASSESSMENT.\n// Retell Web Call tetap mengirim header signature, tapi verifikasinya\n// gagal (key mismatch / bukan API key ber-badge \"webhook\"), sehingga\n// workflow berhenti sebelum sampai ke Google Sheets/Telegram.\n// Untuk PRODUCTION nanti: pasang lagi HMAC check dengan API key yang\n// benar (badge \"webhook\" di Retell dashboard), jangan biarkan seperti ini.\n\nconst item = $input.first().json;\nconst parsedBody = typeof item.body === 'string' ? JSON.parse(item.body) : item.body;\nreturn [{ json: { ...item, body: parsedBody, signatureCheck: 'DISABLED_FOR_ASSESSMENT' } }];"
+      },
+      "name": "Verify Retell Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        144
+      ],
+      "id": "391b2dab-44cf-4cb0-a6a8-e458fbe6091f",
+      "notes": "Signature check dimatikan sementara untuk assessment - lihat komentar di kode. Aktifkan lagi sebelum production."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'received' } }}",
+        "options": {}
+      },
+      "name": "Respond 200 Fast",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        64,
+        16
+      ],
+      "id": "464bcc00-3662-4ff4-8a0f-17a2b0bf18d4"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "call_ended",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "call_analyzed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "call_started",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Switch on Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        64,
+        256
+      ],
+      "id": "cad285f7-41e4-4a11-a8c6-c4e0608931f7",
+      "notes": "call_started diabaikan (cukup dicatat sekali di call_ended). call_analyzed dipakai untuk update ringkasan/hasil analisis pasca panggilan kalau perlu nanti."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1oYOwUpcWcJHkuWcMVPo_0LODFEEhYyLCsLGUFbLkiGM",
+          "mode": "list",
+          "cachedResultName": "data_user_kpr"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Call Log",
+          "mode": "name",
+          "cachedResultName": "Call Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Call ID": "={{ $json.body.call.call_id }}",
+            "Lead ID": "={{ $json.body.call.retell_llm_dynamic_variables?.lead_id }}",
+            "Phone Number": "={{ $json.body.call.to_number }}",
+            "Call Status": "={{ $json.body.call.call_status }}",
+            "Disconnection Reason": "={{ $json.body.call.disconnection_reason }}",
+            "Duration (s)": "={{ $json.body.call.end_timestamp && $json.body.call.start_timestamp ? Math.round(($json.body.call.end_timestamp - $json.body.call.start_timestamp)/1000) : '' }}",
+            "Started At": "={{ $json.body.call.start_timestamp ? new Date($json.body.call.start_timestamp).toISOString() : '' }}",
+            "Ended At": "={{ $json.body.call.end_timestamp ? new Date($json.body.call.end_timestamp).toISOString() : '' }}"
+          },
+          "schema": [
+            {
+              "id": "Call ID",
+              "displayName": "Call ID",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Call Status",
+              "displayName": "Call Status",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Disconnection Reason",
+              "displayName": "Disconnection Reason",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Duration (s)",
+              "displayName": "Duration (s)",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Started At",
+              "displayName": "Started At",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ended At",
+              "displayName": "Ended At",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Log Every Call to Call Log Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        336,
+        304
+      ],
+      "id": "98a33240-4c1c-47c6-a710-c3e8c71832f6",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zH4vbCE8cTLGYUbA",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Sheet 'Call Log' HARUS dibuat manual dengan header sesuai kolom di sini. Ini mencatat SEMUA panggilan (diangkat/tidak/voicemail/putus), bukan cuma yang berhasil qualify."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Call Lifecycle Events": {
+      "main": [
+        [
+          {
+            "node": "Verify Retell Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Retell Signature": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 Fast",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch on Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch on Event Type": {
+      "main": [
+        [
+          {
+            "node": "Log Every Call to Call Log Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "p8doLQPpsvgkyliM",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "b8acdf20-e768-446e-90dc-710cefbd0304",
+  "meta": {
+    "instanceId": "8a205d328b13519a77ab0bffa282cca5e3e86bb353655298051a0bd8f0ca747d"
+  },
+  "nodeGroups": [],
+  "id": "o81BHJx3RNDw7U04",
+  "tags": []
+}

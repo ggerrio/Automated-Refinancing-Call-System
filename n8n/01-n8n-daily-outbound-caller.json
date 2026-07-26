@@ -1,0 +1,335 @@
+{
+  "name": "99Group_Daily_Outbound_Caller",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "name": "Every Weekday 09:00 WIB",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -832,
+        352
+      ],
+      "id": "d7ebabd9-d5da-4e58-8a3e-606f54f2f3c3"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1oYOwUpcWcJHkuWcMVPo_0LODFEEhYyLCsLGUFbLkiGM",
+          "mode": "list",
+          "cachedResultName": "data_user_kpr"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Master Leads",
+          "mode": "name",
+          "cachedResultName": "Master Leads"
+        },
+        "options": {}
+      },
+      "name": "Read Master Leads Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -592,
+        352
+      ],
+      "id": "f4f4dfb7-f6ab-4270-b901-23f3b64cb77d",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zH4vbCE8cTLGYUbA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.Status.trim() }}",
+              "rightValue": "Belum Ditelepon",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.Status.trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "name": "Filter Belum Ditelepon",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        352
+      ],
+      "id": "9e77d6e1-4400-4fd0-89bc-7e2cbf58b372"
+    },
+    {
+      "parameters": {
+        "maxItems": 100
+      },
+      "name": "Limit to 100 per Day",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        352
+      ],
+      "id": "522fc5b2-8c91-4da9-afee-cc2466959b49"
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "name": "Batch of 5 v1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        128,
+        352
+      ],
+      "id": "5bf2d0ad-2e0e-4804-b663-43a5f97151fa",
+      "notes": "v1: loop back dari Mark Lead as Called ke sini. Node akan otomatis iterasi batch 1, 2, 3, dst sampai semua leads selesai."
+    },
+    {
+      "parameters": {
+        "jsCode": "const DRY_RUN = true;\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const lead = item.json;\n  const fakeCallId = 'CALL-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);\n  results.push({\n    json: {\n      call_id: fakeCallId,\n      status: 'dry_run_simulated',\n      to_number: lead['No HP'],\n      lead_id: lead['Lead ID'],\n      customer_name: lead['Nama'],\n      simulated_at: new Date().toISOString(),\n      message: `[DRY RUN] Would call ${lead['Nama']} at ${lead['No HP']}`\n    }\n  });\n}\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        352
+      ],
+      "id": "acfb180b-9d25-4e60-b8ce-d1245883a542",
+      "name": "DRY RUN Caller"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1oYOwUpcWcJHkuWcMVPo_0LODFEEhYyLCsLGUFbLkiGM",
+          "mode": "list",
+          "cachedResultName": "data_user_kpr"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Master Leads",
+          "mode": "name",
+          "cachedResultName": "Master Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead ID": "={{ $json.lead_id }}",
+            "Status": "Sudah Ditelepon",
+            "Last Called At": "={{ $now.toISO() }}",
+            "Call ID": "={{ $json.call_id }}"
+          },
+          "matchingColumns": [
+            "Lead ID"
+          ],
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Nama",
+              "displayName": "Nama",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "No HP",
+              "displayName": "No HP",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last Called At",
+              "displayName": "Last Called At",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Call ID",
+              "displayName": "Call ID",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Mark Lead as Called",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        608,
+        352
+      ],
+      "id": "4bf8d3ca-0edf-42b6-b4ce-d529c809d50d",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zH4vbCE8cTLGYUbA",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Weekday 09:00 WIB": {
+      "main": [
+        [
+          {
+            "node": "Read Master Leads Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Master Leads Sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter Belum Ditelepon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Belum Ditelepon": {
+      "main": [
+        [
+          {
+            "node": "Limit to 100 per Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit to 100 per Day": {
+      "main": [
+        [
+          {
+            "node": "Batch of 5 v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch of 5 v1": {
+      "main": [
+        [
+          {
+            "node": "DRY RUN Caller",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DRY RUN Caller": {
+      "main": [
+        [
+          {
+            "node": "Mark Lead as Called",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Lead as Called": {
+      "main": [
+        [
+          {
+            "node": "Batch of 5 v1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "p8doLQPpsvgkyliM",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "fd3d1bc9-e666-4565-b03c-99357c546455",
+  "meta": {
+    "instanceId": "8a205d328b13519a77ab0bffa282cca5e3e86bb353655298051a0bd8f0ca747d"
+  },
+  "nodeGroups": [],
+  "id": "AAicTowb0a0qB1AG",
+  "tags": []
+}
