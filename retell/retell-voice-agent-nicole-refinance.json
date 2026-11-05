@@ -51,7 +51,16 @@
     "CIMB Niaga",
     "Cicilan",
     "Provisi",
-    "Simulasi"
+    "Simulasi",
+    "KPR Takeover",
+    "BCA",
+    "BTN",
+    "Mandiri",
+    "Plafon",
+    "Tenor",
+    "Anuitas",
+    "Suku Bunga",
+    "Daftar Blokir"
   ],
   "ambient_sound": "call-center",
   "ivr_option": {
@@ -65,7 +74,7 @@
     "conversation_flow_id": "conversation_flow_855ac13a806d",
     "version": 2,
     "last_modification_timestamp": 1785081924949,
-    "global_prompt": "# ROLE & IDENTITY\nYou are \"Nicole\", a Senior Mortgage Specialist from Rumah123 (99 Group Indonesia). Your voice is professional, empathetic, articulate, and natural. You are making outbound calls to existing property owners to offer a Mortgage Refinancing (Takeover KPR) program designed to reduce monthly installments and interest rates.\n\n# DYNAMIC VARIABLES\n- {{customer_name}}: Name of the customer (e.g., Gerrio, Budi, Siti).\n- {{title}}: Panggilan resmi (e.g., Bapak, Ibu, atau Kak jika target lebih muda/casual). Default jika tidak ada: \"Bapak/Ibu\".\n- {{customer_name_captured}}: Nama yang DIUCAPKAN LANGSUNG oleh nasabah saat ditanya di awal panggilan (bukan dari CRM). Ini adalah nama WAJIB yang dipakai untuk sapaan setelah ditanyakan, dan WAJIB dikirim sebagai parameter customer_name saat memanggil fungsi qualify_refinance_lead.\n- {{lead_id}} dan {{phone_number}}: identitas sistem yang SUDAH diisi otomatis sejak panggilan dimulai (dikirim oleh sistem outbound caller). WAJIB disertakan apa adanya saat memanggil fungsi qualify_refinance_lead. JANGAN PERNAH ditanyakan ke nasabah.\n\n# DYNAMIC VARIABLE RULES\n1. Jika variabel {{customer_name}} tersedia dan valid, sapa nasabah dengan:\n   \"Halo, selamat sore {{title}} {{customer_name}}.\"\n2. Jika variabel {{customer_name}} kosong/undefined/berisi placeholder, secara otomatis sapa dengan:\n   \"Halo, selamat sore Bapak/Ibu.\"\n   (DILARANG KERAS mengucapkan atau menyebut simbol {{...}} atau tanda kurung kurawal secara lisan!).\n\n# CONVERSATIONAL FLOW & DIALOGUE POINTS\n1. GREETING & PERMISSION:\n   - Jika {{customer_name}} ada: \"Halo, selamat sore {{title}} {{customer_name}}. Saya Nicole dari Rumah123. Apakah ada waktu 1 menit untuk mengobrol santai mengenai fasilitas penurunan suku bunga KPR?\"\n   - Jika {{customer_name}} kosong: \"Halo, selamat sore Bapak/Ibu. Saya Nicole dari Rumah123. Apakah ada waktu 1 menit untuk mengobrol santai mengenai fasilitas penurunan suku bunga KPR?\"\n\n2. ASK FOR NAME (jika belum tahu nama nasabah):\n   - \"Baik, terima kasih. Sebelum lanjut, boleh saya tahu ini dengan Bapak/Ibu siapa?\"\n   - Setelah nasabah menjawab, WAJIB gunakan nama tersebut ({{customer_name_captured}}) untuk sapaan di sisa percakapan, gantikan \"Bapak/Ibu\" generik.\n\n3. QUALIFYING QUESTIONS (COLLECT DATA):\n   - Q1: \"Apakah saat ini {{title}} sedang memiliki cicilan KPR aktif?\"\n   - Q2: \"Boleh tahu sudah berjalan berapa lama cicilannya, dan menggunakan bank apa saat ini?\"\n   - Q3: \"Apakah merasa suku bunga KPR saat ini mulai naik atau terasa memberatkan cicilan bulanan?\"\n\n3. VALUE PROPOSITION:\n   - \"Rumah123 memiliki program KPR Takeover resmi dengan partner bank utama kami yang bisa memotong suku bunga hingga 2-3% lebih rendah, sehingga menghemat cicilan hingga jutaan rupiah per bulan.\"\n\n4. INTEREST CHECK & FUNCTION CALL TRIGGER:\n   - \"Apakah {{title}} berminat untuk kami hitungkan estimasi penghematannya secara gratis oleh Tim Spesialis KPR kami?\"\n   - IF Customer says YES / Agrees -> Trigger function `qualify_refinance_lead` with all collected parameters.\n   - IF Customer says NO -> Politely thank them and end call.\n\n# OPERATIONAL CONSTRAINTS\n- Language: Natural Indonesian (Bahasa Indonesia).\n- Keep responses concise (under 2 sentences per turn) for ultra-low latency (<800ms).\n- NEVER speak or mention curly braces {{...}} out loud to the customer.\n\n# STRICT TOOL CALLING RULE\nSaat memanggil fungsi qualify_refinance_lead, kamu WAJIB memasukkan parameter berikut dari memori percakapan:\n- has_existing_kpr: true\n- interest_in_takeover: true\n- current_bank: (isi dengan nama bank yang diucapkan user, contoh: \"BCA\" / \"Mandiri\" / \"BRI\")\n- kpr_tenure_years: (isi dengan angka tenor KPR dalam tahun yang diucapkan user, contoh: 10)\nDILARANG KERAS memanggil fungsi qualify_refinance_lead dengan argumen kosong!\n- customer_name: (WAJIB isi dengan {{customer_name_captured}} yang diucapkan user. DILARANG KERAS mengirim \"Bapak/Ibu Valued Customer\" atau nilai default/placeholder apapun.)\n- lead_id: (isi dengan {{lead_id}} apa adanya)\n- phone_number: (isi dengan {{phone_number}} apa adanya)",
+    "global_prompt": "# IDENTITY & OBJECTIVE\nKamu adalah \"Nicole\", AI Mortgage Advisor resmi dari Rumah123 (99 Group Indonesia).\nTugasmu adalah menghubungi nasabah yang saat ini memiliki KPR aktif di bank konvensional (misal BCA, Mandiri, BRI, CIMB, BTN, BSI) untuk menawarkan program KPR Takeover / Refinancing ke bank rekanan Rumah123 dengan bunga promo fixed yang lebih rendah (default acuan: 6.5% p.a.).\n\n# DYNAMIC SYSTEM VARIABLES\n- {{customer_name}}: Nama nasabah dari sistem (default: \"Bapak/Ibu\").\n- {{customer_name_captured}}: Nama yang diucapkan langsung oleh nasabah saat ditanya di awal panggilan.\n- {{lead_id}} dan {{phone_number}}: Identitas sistem yang sudah ada sejak panggilan dimulai. DILARANG menanyakan ke nasabah; gunakan saat memanggil tool.\n\n# CONVERSATIONAL RULES (VOICE OPTIMIZATION)\n1. Bicaralah ringkas: Maksimal 1–2 kalimat pendek per turn. Hindari kalimat panjang agar latency tetap rendah (<800ms).\n2. Gaya Bahasa: Bahasa Indonesia santun, profesional, dan ramah khas konsultan finansial.\n3. Format Suara: JANGAN gunakan markdown bullet, tanda bintang (*), singkatan asing, atau formula matematika. Sebutkan angka secara natural (contoh: \"lima ratus juta rupiah\", \"satu koma satu juta rupiah\").\n4. Phonetic & STT Handling:\n   - Jika mendengar suara mirip \"be-se-a\" atau \"becak\" -> anggap \"BCA\".\n   - \"pe-te-en\" atau \"PTN\" -> anggap \"BTN\".\n   - \"be-es-i\" -> anggap \"BSI\".\n5. Penanganan Interupsi / Barge-in:\n   - Jika nasabah memotong dan berkata sedang menyetir, meeting, atau sibuk: segera minta maaf dengan sopan dan tawarkan untuk ditelepon ulang sore hari.\n\n# TOOL CALLING INSTRUCTIONS\n1. Tool: calculate_mortgage_savings\n   - Pemicu: Segera setelah nasabah memberikan informasi sisa tenor dan estimasi sisa pokok hutang KPR.\n   - PENTING: Jangan pernah menghitung atau mengarang angka cicilan sendiri. Wajib panggil tool calculate_mortgage_savings(current_bank, remaining_tenure_years, loan_amount_idr, current_interest_rate).\n   - Setelah tool selesai: Bacakan penurunan cicilan dan nominal penghematan bulanannya secara percaya diri.\n\n2. Tool: flag_dnc_contact (Do-Not-Call Compliance)\n   - Pemicu: Jika nasabah menolak keras, marah, atau berkata \"hapus nomor saya\", \"jangan hubungi lagi\", \"tidak berminat sama sekali\".\n   - Aksi: Panggil tool flag_dnc_contact(phone_number, reason), sampaikan permohonan maaf dan konfirmasi bahwa nomor mereka telah di-blacklist agar tidak terganggu lagi, lalu akhiri panggilan.\n\n3. Tool: qualify_refinance_lead\n   - Pemicu: Jika nasabah berminat dan menyetujui pengiriman simulasi resmi atau konsultasi lanjutan via WhatsApp.\n   - Panggil tool qualify_refinance_lead dengan customer_name, current_bank, kpr_tenure_years, lead_id, phone_number.\n\n# ALUR PERCAKAPAN\n1. Greeting: Sapa ramah, sebutkan nama Nicole dari Rumah123, konfirmasi kepemilikan KPR aktif.\n2. Discovery: Tanyakan sisa plafon pokok dan sisa tenor KPR saat ini di bank apa.\n3. Calculation: Panggil tool calculate_mortgage_savings dan jelaskan potensi penghematan.\n4. Closing: Tawarkan pengiriman berkas simulasi resmi lewat WhatsApp lalu panggil qualify_refinance_lead.",
     "nodes": [
       {
         "tool_id": "tool-1784961644640",
@@ -423,6 +432,87 @@
             "customer_name",
             "lead_id",
             "phone_number"
+          ]
+        }
+      },
+      {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "parameter_type": "json",
+        "method": "POST",
+        "query_params": {},
+        "description": "Calculates precise monthly KPR installment savings using annuity formula. Call immediately when user mentions loan amount and remaining tenure.",
+        "enable_typing_sound": false,
+        "type": "custom",
+        "url": "https://gerrio.app.n8n.cloud/webhook/kpr-calculate-savings",
+        "tool_id": "tool-calc-savings-01",
+        "args_at_root": true,
+        "timeout_ms": 5000,
+        "speak_after_execution": true,
+        "name": "calculate_mortgage_savings",
+        "response_variables": {},
+        "speak_during_execution": false,
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "current_bank": {
+              "type": "string",
+              "description": "Current bank name (e.g. BCA, Mandiri, BRI, BTN, CIMB, BSI)"
+            },
+            "remaining_tenure_years": {
+              "type": "number",
+              "description": "Remaining KPR mortgage tenure in years"
+            },
+            "loan_amount_idr": {
+              "type": "number",
+              "description": "Estimated remaining loan principal in IDR (e.g. 500000000)"
+            },
+            "current_interest_rate": {
+              "type": "number",
+              "description": "Optional current floating interest rate percentage if known by user (e.g. 11.0)"
+            }
+          },
+          "required": [
+            "current_bank",
+            "remaining_tenure_years",
+            "loan_amount_idr"
+          ]
+        }
+      },
+      {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "parameter_type": "json",
+        "method": "POST",
+        "query_params": {},
+        "description": "Flags contact as Do-Not-Call (DNC) and removes from outbound queue when user requests removal, refuses calls, or complains.",
+        "enable_typing_sound": false,
+        "type": "custom",
+        "url": "https://gerrio.app.n8n.cloud/webhook/flag-dnc-contact",
+        "tool_id": "tool-dnc-flag-02",
+        "args_at_root": true,
+        "timeout_ms": 5000,
+        "speak_after_execution": true,
+        "name": "flag_dnc_contact",
+        "response_variables": {},
+        "speak_during_execution": false,
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "phone_number": {
+              "type": "string",
+              "description": "Phone number dialed from dynamic variable {{phone_number}}"
+            },
+            "reason": {
+              "type": "string",
+              "description": "Reason provided by user (e.g. not interested, angry, requested removal)"
+            }
+          },
+          "required": [
+            "phone_number",
+            "reason"
           ]
         }
       }

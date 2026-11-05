@@ -1,0 +1,172 @@
+{
+  "name": "06 - KPR Calculator & DNC Compliance Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kpr-calculate-savings",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-calc",
+      "name": "Webhook KPR Calculator",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst principal = parseFloat(body.loan_amount_idr) || 500000000;\nconst tenureYears = parseInt(body.remaining_tenure_years) || 10;\nconst bank = (body.current_bank || 'BCA').toUpperCase().trim();\n\nconst defaultRates = {\n  'BCA': 10.75,\n  'MANDIRI': 11.25,\n  'BRI': 11.00,\n  'BTN': 12.00,\n  'CIMB': 10.50,\n  'BSI': 11.00,\n  'DEFAULT': 11.00\n};\n\nconst currentRate = parseFloat(body.current_interest_rate) || defaultRates[bank] || defaultRates['DEFAULT'];\nconst takeoverRate = 6.50;\n\nfunction calcInstallment(p, ratePct, years) {\n  const r = (ratePct / 100.0) / 12.0;\n  const n = years * 12;\n  const comp = Math.pow(1 + r, n);\n  return (p * (r * comp)) / (comp - 1);\n}\n\nfunction formatSpokenRupiah(amount) {\n  if (amount >= 1000000000) {\n    return (amount / 1000000000).toFixed(1).replace('.', ' koma ') + ' miliar rupiah';\n  } else if (amount >= 1000000) {\n    return (amount / 1000000).toFixed(1).replace('.', ' koma ') + ' juta rupiah';\n  } else {\n    return Math.round(amount) + ' rupiah';\n  }\n}\n\nconst currentMonthly = calcInstallment(principal, currentRate, tenureYears);\nconst newMonthly = calcInstallment(principal, takeoverRate, tenureYears);\nconst monthlySavings = Math.max(0, currentMonthly - newMonthly);\n\nconst spokenCurrent = formatSpokenRupiah(currentMonthly);\nconst spokenNew = formatSpokenRupiah(newMonthly);\nconst spokenSavings = formatSpokenRupiah(monthlySavings);\n\nconst pitch = `Dengan memindahkan KPR ke rekanan Rumah123 berbunga ${takeoverRate} persen, cicilan Anda turun dari sekitar ${spokenCurrent} menjadi ${spokenNew}. Anda bisa menghemat sekitar ${spokenSavings} setiap bulannya.`;\n\nreturn [{\n  json: {\n    status: 'success',\n    current_bank: bank,\n    principal_idr: principal,\n    remaining_tenure_years: tenureYears,\n    current_interest_rate_pct: currentRate,\n    takeover_interest_rate_pct: takeoverRate,\n    current_monthly_installment: Math.round(currentMonthly),\n    new_monthly_installment: Math.round(newMonthly),\n    monthly_savings: Math.round(monthlySavings),\n    spoken_pitch: pitch,\n    spoken_monthly_savings: spokenSavings\n  }\n}];"
+      },
+      "id": "node-calc-logic",
+      "name": "Compute Annuity & Savings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "node-calc-response",
+      "name": "Respond to Retell Voice Agent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        740,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "flag-dnc-contact",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-dnc",
+      "name": "Webhook DNC Flag",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst phone = (body.phone_number || '').trim();\nconst reason = body.reason || 'User requested Do-Not-Call opt out';\nconst now = new Date().toISOString();\n\nreturn [{\n  json: {\n    phone_number: phone,\n    reason: reason,\n    timestamp_utc: now,\n    status: 'blacklisted',\n    spoken_response: 'Baik, mohon maaf atas ketidaknyamanannya. Nomor Anda telah kami catat dalam daftar blokir agar tidak dihubungi kembali. Terima kasih dan selamat beraktivitas.'\n  }\n}];"
+      },
+      "id": "node-dnc-logic",
+      "name": "Process DNC Compliance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID || '-10022334455' }}",
+        "text": "=🚫 *DO-NOT-CALL (DNC) COMPLIANCE ALERT*\n\n📱 *Nomor:* `{{ $json.phone_number }}`\n⚠️ *Alasan:* {{ $json.reason }}\n⏰ *Waktu:* {{ $json.timestamp_utc }}\n\n_Nomor telah ditandai blacklist dan otomatis diexclude dari antrean panggilan 100 leads harian._",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-telegram-dnc",
+      "name": "Alert Supervisor on Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        740,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "node-dnc-response",
+      "name": "Respond DNC to Voice Agent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        540
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook KPR Calculator": {
+      "main": [
+        [
+          {
+            "node": "Compute Annuity & Savings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Annuity & Savings": {
+      "main": [
+        [
+          {
+            "node": "Respond to Retell Voice Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook DNC Flag": {
+      "main": [
+        [
+          {
+            "node": "Process DNC Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process DNC Compliance": {
+      "main": [
+        [
+          {
+            "node": "Alert Supervisor on Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Supervisor on Telegram": {
+      "main": [
+        [
+          {
+            "node": "Respond DNC to Voice Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+
