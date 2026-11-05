@@ -180,5 +180,5 @@ npx n8n
 ## 8. Author
 
 **Gerrio Irfan Pratama**  
-*Candidate for AI Engineer Intern — 99 Group Graduate Program 2026*  
+*Candidate for AI Engineer Intern — 99 Group Maganghub 2026*  
 Repository: [99-Group-Graduate-Program---Automated-Refinancing-Call-System](https://github.com/gerrioo/99-Group-Graduate-Program---Automated-Refinancing-Call-System)
