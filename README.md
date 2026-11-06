@@ -1,7 +1,7 @@
 # 99 Group Automated Mortgage Refinancing Call System
 ### An End-to-End Voice AI & Event-Driven Orchestration Engine for Rumah123 (99 Group)
 
-Built for the **99 Group Graduate Program (AI Assessment Challenge)** by **Gerrio Irfan Pratama**.
+Built for the **99 Group Maganghub (AI Assessment Challenge)** by **Gerrio Irfan Pratama**.
 
 ---
 
