@@ -107,6 +107,8 @@ Building voice agents is fundamentally different from building chatbots. In voic
 │   ├── 04-n8n-daily-summary-report.json            # 18:00 WIB automated KPI summary report
 │   ├── 05-n8n-error-notifier.json                  # Global error alert catch-all
 │   └── 06-n8n-mortgage-calculator-and-dnc.json    # Calculator & DNC webhook pipelines
+├── demo/
+│   └── Retellai-Demo-G.m4v                         # Live screen record demo of Retell voice call
 ├── data/
 │   └── sample-master-leads.csv                     # Mock CRM leads with representative statuses
 ├── ARCHITECTURE.md                                 # Technical architecture & deep-dive flows
